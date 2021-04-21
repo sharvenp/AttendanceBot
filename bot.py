@@ -1,22 +1,49 @@
 import os
 
 import discord
+from discord.ext import commands
 from dotenv import load_dotenv
+from pymongo import MongoClient
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-client = discord.Client()
+bot = commands.Bot(command_prefix='!')
 
-@client.event
+connection = MongoClient(os.getenv('DB_URL'))
+db = connection['discordBot']
+debug = db['debug']
+
+
+@bot.event
 async def on_ready():
-    print(f'{client.user} has connected to Discord!')
+    print(f'{bot.user} has connect Discord!')
 
-@client.event
+@bot.event
 async def on_message(message):
-    if message.author == client.user:
-        return
+    await bot.process_commands(message)
 
-    await message.channel.send("Hello! " + message.author.name)
+@bot.command(name='echo')
+async def echo_ctx(ctx):
+    user = ctx.author.id
+    server = ctx.guild.id
+    debug.update_one({"$and": [{"user": user}, {"server":server}]}, {"$inc": {'echos' : 1}}, upsert=True)
+    await ctx.send(f'hello {ctx.author.id} from server {ctx.guild}! you sent {ctx.message.clean_content}')
 
-client.run(TOKEN)
+
+
+bot.run(TOKEN)
+# client = discord.Client()
+
+# @client.event
+# async def on_ready():
+#     print(f'{client.user} has connected to Discord!')
+
+# @client.event
+# async def on_message(message):
+#     if message.author == client.user:
+#         return
+
+#     await message.channel.send("Hello! " + message.author.name)
+
+# client.run(TOKEN)
