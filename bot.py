@@ -72,6 +72,28 @@ async def echo_points(ctx):
     document = collection.find_one({"user":user})
     await ctx.send(f'Hello {ctx.author.name}, you have {document["points"]} points and a streak of {document["streak"]}!')
 
+@bot.command(name='set_alarm')
+async def set_preferences(ctx, _time, _points, _message_to_send):
+    try:
+        alarm = time.strptime(_time, "%H:%M")
+        alarm = time.strftime("%H:%M", alarm)
+        p = int(_points)
+        user = ctx.author.id
+        server = ctx.guild.id
+        collection = db[str(server)]
+        collection.update_one({'time':alarm}, {"$set" : {"time":alarm, "points":p, "message": _message_to_send}}, upsert=True)
+        await ctx.send(f"alarm set for {alarm}, worth {p} points!")
+    except:
+        # await ctx.send("looks like that command wasn't formatted correctly, use `bot_help` to find the correct way to set up this bot")
+        pass
+
+@bot.command(name='d')
+async def debug_time(ctx, _time):
+    await ctx.send(time.strptime(_time, "%H:%M"))
+
+@bot.command(name='bot_help')
+async def info(ctx):
+    await ctx.send("TO SET UP THIS BOT USE THE `set_alarm` command, arguments are space seperated \n <time> -> HH:mm string for when to send (24 hour time)\n <points> -> int how many points this rollcall is worth\n <message_to_send> -> str the message the bot will send ")
 
 bot.run(TOKEN)
 # client = discord.Client()
