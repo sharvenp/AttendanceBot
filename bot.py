@@ -99,9 +99,15 @@ async def set_preferences(ctx, _time, _points, _message_to_send):
 async def debug_time(ctx, _time):
     server = ctx.guild.id
     collection = db[str(server)]
-    collection.delete_one({"time":_time})
+    
+    try:
+        alarm = time.strptime(_time, "%H:%M")
+        alarm = time.strftime("%H:%M", alarm)
+        collection.delete_one({"time":alarm})
+        await ctx.send(f"deleted alarm for {alarm}")
+    except:
+        return await ctx.send("not a valid time format")
 
-    await ctx.send("deleted alarm")
 
 @bot.command(name='bot_help')
 async def info(ctx):
