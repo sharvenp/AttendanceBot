@@ -1,5 +1,5 @@
 import os
-
+import time
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -51,8 +51,17 @@ async def echo_ctx(ctx):
 async def add_points(ctx):
     user = ctx.author.id
     server = ctx.guild.id
+    increase = 1
+    curr_time = time.time()
     collection = db[str(server)]
-    collection.update_one({"user":user}, {"$inc": {'points' : 1}}, upsert=True)
+    # check if this user has a streak
+    # if so points go up based on that streak
+    doc = collection.find_one({"user":user})
+    if doc and 'streak' in doc:
+        if abs(curr_time - doc["last_update"]) < 86400: # number of seconds in a day
+            increase *= doc['streak'] + 1
+
+    collection.update_one({"user":user}, {"$inc": {'points' : increase, 'streak' : 1}, "$set" : {"last_update" : time.time()}}, upsert=True)
     await ctx.send(f'thank you for coming {ctx.author.name}!')
 
 @bot.command(name='points')
@@ -61,7 +70,7 @@ async def echo_points(ctx):
     server = ctx.guild.id
     collection = db[str(server)]
     document = collection.find_one({"user":user})
-    await ctx.send(f'Hello {ctx.author.name}, you have {document["points"]} points!')
+    await ctx.send(f'Hello {ctx.author.name}, you have {document["points"]} points and a streak of {document["streak"]}!')
 
 
 bot.run(TOKEN)
