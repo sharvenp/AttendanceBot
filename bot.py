@@ -8,6 +8,8 @@ from pymongo import MongoClient
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
+
+from server import stay_alive
 """
 
 ATTENDANCE BOT 
@@ -15,15 +17,18 @@ ATTENDANCE BOT
 this bot will take a roll call at a given time and users can respond with
 !here to be marked as present
 
-if conditions are met, the user may be given additional points [TBD]
+Each user gets streaks for attending multiple alarms in a row, increasing the amount of points they get
+
+Users can set up alarms and delete alarms with commands
 
 DATABASE SCHEMEA
 
 we have one collection for each server, 
-each document in the server holds the userid, points, last entry, and streak of a user
+    in each collection, two types of documents exist
+    1. Users: holds user id, points, streak, and last ping time
+    2. Alarms: holds time, point value, and message to send
 
 """
-
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -96,7 +101,6 @@ async def set_preferences(ctx, _time, _points, _message_to_send):
         user = ctx.author.id
         server = ctx.guild.id
         collection = db[str(server)]
-        # collection.update_one({'time': alarm}, {"$set": {"time": alarm, "points": p, "message": _message_to_send}}, upsert=True)
         
         collection.update_one({'time': alarm}, {"$set": {"time": alarm, "points": p, "message": _message_to_send}}, upsert=True)
         document = collection.find_one({'time': alarm})
@@ -132,20 +136,6 @@ async def debug_time(ctx, _time):
 async def info(ctx):
     await ctx.send("TO SET UP THIS BOT USE THE `set_alarm` command, arguments are space seperated \n <time> -> HH:mm string for when to send (24 hour time)\n <points> -> int how many points this rollcall is worth\n <message_to_send> -> str the message the bot will send ")
 
+stay_alive() # keep this bot alive when hosting
 bot.run(TOKEN)
 asyncio.get_event_loop().run_forever()
-
-# client = discord.Client()
-
-# @client.event
-# async def on_ready():
-#     print(f'{client.user} has connected to Discord!')
-
-# @client.event
-# async def on_message(message):
-#     if message.author == client.user:
-#         return
-
-#     await message.channel.send("Hello! " + message.author.name)
-
-# client.run(TOKEN)
