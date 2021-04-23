@@ -87,9 +87,13 @@ async def set_preferences(ctx, _time, _points, _message_to_send):
         # await ctx.send("looks like that command wasn't formatted correctly, use `bot_help` to find the correct way to set up this bot")
         pass
 
-@bot.command(name='d')
+@bot.command(name='delete_alarm')
 async def debug_time(ctx, _time):
-    await ctx.send(time.strptime(_time, "%H:%M"))
+    server = ctx.guild.id
+    collection = db[str(server)]
+    collection.delete_one({"time":_time})
+
+    await ctx.send("deleted alarm")
 
 @bot.command(name='bot_help')
 async def info(ctx):
