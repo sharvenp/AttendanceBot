@@ -63,11 +63,15 @@ async def add_points(ctx):
 
         doc = collection.find_one({"user":user})
         if doc and 'streak' in doc:
-            if abs(curr_time - doc["last_update"]) < 86400: # number of seconds in a day
+            if abs(curr_time - doc["last_update"]) <= 86400: 
                 increase *= doc['streak'] + 1
+            if abs(curr_time - doc["last_update"]) < 60:
+                return await ctx.send("you have already been marked as here for this alarm")
 
         collection.update_one({"user":user}, {"$inc": {'points' : increase, 'streak' : 1}, "$set" : {"last_update" : time.time()}}, upsert=True)
-    await ctx.send(f'thank you for coming {ctx.author.name}!')
+        await ctx.send(f'thank you for coming {ctx.author.name}!')
+    else:
+        await ctx.send("there is no alarm set for this time")
 
 @bot.command(name='points')
 async def echo_points(ctx):
