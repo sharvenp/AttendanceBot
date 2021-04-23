@@ -51,17 +51,22 @@ async def echo_ctx(ctx):
 async def add_points(ctx):
     user = ctx.author.id
     server = ctx.guild.id
-    increase = 1
     curr_time = time.time()
     collection = db[str(server)]
-    # check if this user has a streak
-    # if so points go up based on that streak
-    doc = collection.find_one({"user":user})
-    if doc and 'streak' in doc:
-        if abs(curr_time - doc["last_update"]) < 86400: # number of seconds in a day
-            increase *= doc['streak'] + 1
+    # check if there is an alarm now
+    alarm = collection.find_one({"time": time.strftime("%H:%M", time.localtime())})
+    if alarm:
+        # if there is one then we can update
+        increase = int(alarm["points"])
+        # check if this user has a streak
+        # if so points go up based on that streak
 
-    collection.update_one({"user":user}, {"$inc": {'points' : increase, 'streak' : 1}, "$set" : {"last_update" : time.time()}}, upsert=True)
+        doc = collection.find_one({"user":user})
+        if doc and 'streak' in doc:
+            if abs(curr_time - doc["last_update"]) < 86400: # number of seconds in a day
+                increase *= doc['streak'] + 1
+
+        collection.update_one({"user":user}, {"$inc": {'points' : increase, 'streak' : 1}, "$set" : {"last_update" : time.time()}}, upsert=True)
     await ctx.send(f'thank you for coming {ctx.author.name}!')
 
 @bot.command(name='points')
@@ -84,8 +89,7 @@ async def set_preferences(ctx, _time, _points, _message_to_send):
         collection.update_one({'time':alarm}, {"$set" : {"time":alarm, "points":p, "message": _message_to_send}}, upsert=True)
         await ctx.send(f"alarm set for {alarm}, worth {p} points!")
     except:
-        # await ctx.send("looks like that command wasn't formatted correctly, use `bot_help` to find the correct way to set up this bot")
-        pass
+        await ctx.send("looks like that command wasn't formatted correctly, use `bot_help` to find the correct way to set up this bot")
 
 @bot.command(name='delete_alarm')
 async def debug_time(ctx, _time):
