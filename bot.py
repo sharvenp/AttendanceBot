@@ -8,8 +8,6 @@ from pymongo import MongoClient
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
-
-from server import stay_alive
 """
 
 ATTENDANCE BOT 
@@ -136,6 +134,5 @@ async def debug_time(ctx, _time):
 async def info(ctx):
     await ctx.send("TO SET UP THIS BOT USE THE `set_alarm` command, arguments are space seperated \n <time> -> HH:mm string for when to send (24 hour time)\n <points> -> int how many points this rollcall is worth\n <message_to_send> -> str the message the bot will send ")
 
-stay_alive() # keep this bot alive when hosting
 bot.run(TOKEN)
 asyncio.get_event_loop().run_forever()
