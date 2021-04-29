@@ -100,28 +100,44 @@ async def set_preferences(ctx, _time, _points, _message_to_send):
         server = ctx.guild.id
         collection = db[str(server)]
         
-        collection.update_one({'time': alarm}, {"$set": {"time": alarm, "points": p, "message": _message_to_send}}, upsert=True)
+        collection.update_one({'time': alarm}, {"$set": {"time": alarm, "points": p, "message": _message_to_send, "channel": ctx.channel.id}}, upsert=True)
         document = collection.find_one({'time': alarm})
         # Create job
         sched.add_job(send_attendance_message, 'cron', hour=alarm[:2], minute=alarm[3:5], id=str(document['_id']), args=(ctx, _message_to_send))
         
         await ctx.send(f"alarm set for {alarm}, worth {p} points!")
     except:
-        await ctx.send("looks like that command wasn't formatted correctly, use `bot_help` to find the correct way to set up this bot")
+        await ctx.send("looks like that command wasn't formatted correctly, or an alarm already exists at this time")
 
 async def send_attendance_message(ctx, _message_to_send):
     await ctx.send(_message_to_send)
 
-@bot.command(name='delete_alarm')
-async def debug_time(ctx, _time):
+@bot.command(name='list_alarms')
+async def list_alarms(ctx):
+    channel_id = ctx.channel.id
     server = ctx.guild.id
     collection = db[str(server)]
+    documents = collection.find({"channel": channel_id})
+    msg = ""
+    for d in documents:
+        msg += f"Time: {d['time']}, Points: {d['points']}, Message: {d['message']}\n"
+
+    if (msg):
+        await ctx.send(msg)
+    else:
+        await ctx.send("There are no alarms set in this channel")
+
+@bot.command(name='delete_alarm')
+async def remove_alarm(ctx, _time):
+    server = ctx.guild.id
+    collection = db[str(server)]
+    channel_id = ctx.channel.id
     
     try:
         alarm = time.strptime(_time, "%H:%M")
         alarm = time.strftime("%H:%M", alarm)
-        document = collection.find_one({"time": alarm})
-        collection.delete_one({"time": alarm})
+        document = collection.find_one({"time": alarm, "channel": channel_id})
+        collection.delete_one({"time": alarm, "channel": channel_id})
         
         sched.remove_job(str(document['_id']))
 
@@ -129,6 +145,37 @@ async def debug_time(ctx, _time):
     except:
         return await ctx.send("not a valid time format")
 
+@bot.command(name='delete_all_alarms')
+async def delete_every_alarm(ctx):
+    channel_id = ctx.channel.id
+    server = ctx.guild.id
+    collection = db[str(server)]
+    documents = collection.find({"channel": channel_id})
+    msg = ""
+    for d in documents:
+        msg += f"Deleted Alarm - Time: {d['time']}, Points: {d['points']}, Message: {d['message']}\n"
+        d_id = d['_id']
+        collection.delete_one({'time': d['time'], 'channel': d['channel']})
+        sched.remove_job(str(d_id))
+
+    if (msg):
+        await ctx.send(msg)
+    else:
+        await ctx.send("There are no alarms set in this channel")
+
+@bot.command(name='edit_alarm')
+async def edit(ctx, _time, _edited_message):
+    channel_id = ctx.channel.id
+    server = ctx.guild.id
+    collection = db[str(server)]
+    document = collection.find_one({"time": _time, "channel": channel_id})
+
+    if (document == None):
+        await ctx.send("Could not find alarm at this time for this channel")
+    else:
+        prev_message = document['message']
+        collection.update_one({"time": _time, "channel": channel_id}, {"$set": {"message": _edited_message}})
+        await ctx.send(f"Message for time {_time} has been updated from {prev_message} to {_edited_message}")
 
 @bot.command(name='bot_help')
 async def info(ctx):
