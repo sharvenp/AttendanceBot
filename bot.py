@@ -70,14 +70,20 @@ async def add_points(ctx):
         # check if this user has a streak
         # if so points go up based on that streak
 
-        doc = collection.find_one({"user":user})
+        doc = collection.find_one({"user": user})
+        streak_flag = False
         if doc and 'streak' in doc:
             if abs(curr_time - doc["last_update"]) <= 86400: 
                 increase *= doc['streak'] + 1
+                streak_flag = True
             if abs(curr_time - doc["last_update"]) < 60:
                 return await ctx.send("you have already been marked as here for this alarm")
 
-        collection.update_one({"user":user}, {"$inc": {'points' : increase, 'streak' : 1}, "$set" : {"last_update" : time.time()}}, upsert=True)
+        if streak_flag:
+            collection.update_one({"user":user}, {"$inc": {'points' : increase, 'streak' : 1}, "$set" : {"last_update" : time.time()}}, upsert=True)
+        else:
+            collection.update_one({"user":user}, {"$inc": {'points' : increase}, "$set" : {"last_update" : time.time(), 'streak' : 1}}, upsert=True)
+
         await ctx.send(f'thank you for coming {ctx.author.name}!')
     else:
         await ctx.send("there is no alarm set for this time")
@@ -87,8 +93,11 @@ async def echo_points(ctx):
     user = ctx.author.id
     server = ctx.guild.id
     collection = db[str(server)]
-    document = collection.find_one({"user":user})
-    await ctx.send(f'Hello {ctx.author.name}, you have {document["points"]} points and a streak of {document["streak"]}!')
+    document = collection.find_one({"user": user})
+    if document:
+        await ctx.send(f'Hello {ctx.author.name}, you have {document["points"]} points and a streak of {document["streak"]}!')
+    else:
+        await ctx.send(f'Hello {ctx.author.name}, you have no points. Make sure to be present next time!')
 
 @bot.command(name='set_alarm')
 async def set_preferences(ctx, _time, _points, _message_to_send):
@@ -103,14 +112,19 @@ async def set_preferences(ctx, _time, _points, _message_to_send):
         collection.update_one({'time': alarm}, {"$set": {"time": alarm, "points": p, "message": _message_to_send, "channel": ctx.channel.id}}, upsert=True)
         document = collection.find_one({'time': alarm})
         # Create job
-        sched.add_job(send_attendance_message, 'cron', hour=alarm[:2], minute=alarm[3:5], id=str(document['_id']), args=(ctx, _message_to_send))
+        sched.add_job(send_attendance_message, 'cron', hour=alarm[:2], minute=alarm[3:5], id=str(document['_id']), args=(ctx, db, alarm))
         
         await ctx.send(f"alarm set for {alarm}, worth {p} points!")
     except:
         await ctx.send("looks like that command wasn't formatted correctly, or an alarm already exists at this time")
 
-async def send_attendance_message(ctx, _message_to_send):
-    await ctx.send(_message_to_send)
+async def send_attendance_message(ctx, database, alarm):
+    channel_id = ctx.channel.id
+    server = ctx.guild.id
+    collection = database[str(server)]
+    document = collection.find_one({"time": alarm, "channel": channel_id})
+    msg = document['message']
+    await ctx.send(msg)
 
 @bot.command(name='list_alarms')
 async def list_alarms(ctx):
@@ -175,7 +189,7 @@ async def edit(ctx, _time, _edited_message):
     else:
         prev_message = document['message']
         collection.update_one({"time": _time, "channel": channel_id}, {"$set": {"message": _edited_message}})
-        await ctx.send(f"Message for time {_time} has been updated from {prev_message} to {_edited_message}")
+        await ctx.send(f"Message for time {_time} has been updated from \"{prev_message}\" to \"{_edited_message}\"")
 
 @bot.command(name='bot_help')
 async def info(ctx):
